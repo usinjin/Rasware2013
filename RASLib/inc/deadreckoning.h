@@ -15,8 +15,8 @@ RobotPose* initDeadReckoning(
     float inchesAxisWidth,
     float ticksPerInch,
     float timeStep, // seconds
-    tEncoder *leftEnc,
-    tEncoder *rightEnc
+    unsigned char leftEnc,
+    unsigned char rightEnc
     );
 
 #endif // __DEADRECKONING_H__
