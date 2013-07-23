@@ -6,8 +6,8 @@
 static unsigned char isInitialized = 0;
 
 static RobotPose pose;
-static float inchesAxisWidth,
-             ticksPerInch; // the axis width should be provided in inches, not ticks, so we need this conversion
+static float unitsAxisWidth,
+             ticksPerUnit; // the axis width should be provided in 'units', not ticks, so we need this conversion
 static unsigned char leftEncIndex,
                      rightEncIndex;
 
@@ -28,8 +28,8 @@ int floatBasicallyEqual(float a, float b) {
 // this function will be the callback for a periodic timer event, updating our pose estimate based on the encoders' ticks
 void updatePose(void *data) {
     // calculate the distance each wheel has turned
-    float leftDist = GetEncoderTicks(leftEncIndex) / ticksPerInch,
-          rightDist = GetEncoderTicks(rightEncIndex) / ticksPerInch,
+    float leftDist = GetEncoderTicks(leftEncIndex) / ticksPerUnit,
+          rightDist = GetEncoderTicks(rightEncIndex) / ticksPerUnit,
           x = pose.x,
           y = pose.y,
           heading = pose.heading,
@@ -43,8 +43,8 @@ void updatePose(void *data) {
         new_y = y + rightDist * sin(heading);
         new_heading = heading;
     } else {
-        float R = inchesAxisWidth * (leftDist + rightDist) / (2 * (rightDist - leftDist)),
-              wd = (rightDist - leftDist) / inchesAxisWidth;
+        float R = unitsAxisWidth * (leftDist + rightDist) / (2 * (rightDist - leftDist)),
+              wd = (rightDist - leftDist) / unitsAxisWidth;
 
         new_x = x + R * sin(wd + heading) - R * sin(heading);
         new_y = y - R * cos(wd + heading) + R * cos(heading);
@@ -79,8 +79,8 @@ void getCurrentPose(RobotPose *_pose) {
 
 void initDeadReckoning(
     RobotPose *initialPose,
-    float _inchesAxisWidth,
-    float _ticksPerInch,
+    float _unitsAxisWidth,
+    float _ticksPerUnit,
     float timeStep,
     unsigned char _leftEncIndex,
     unsigned char _rightEncIndex
@@ -103,8 +103,8 @@ void initDeadReckoning(
         pose.heading = initialPose->heading;
     }
     
-    inchesAxisWidth = _inchesAxisWidth;
-    ticksPerInch = _ticksPerInch;
+    unitsAxisWidth = _unitsAxisWidth;
+    ticksPerUnit = _ticksPerUnit;
 
     // we assume that these encoders have already been initialized 
     // (TODO: ensure that they have been initialized)
