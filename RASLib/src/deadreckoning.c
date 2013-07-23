@@ -57,7 +57,27 @@ void updatePose(void *data) {
     pose.heading = new_heading;
 }
 
-RobotPose* initDeadReckoning(
+void setCurrentPose(RobotPose *_pose) {
+    if (!_pose) {
+        return;
+    }
+
+    pose.x = _pose->x;
+    pose.y = _pose->y;
+    pose.heading = _pose->heading;
+}
+
+void getCurrentPose(RobotPose *_pose) {
+    if (!_pose) {
+        return;
+    }
+
+    _pose->x = pose.x;
+    _pose->y = pose.y;
+    _pose->heading = pose.heading; 
+}
+
+void initDeadReckoning(
     RobotPose *initialPose,
     float _inchesAxisWidth,
     float _ticksPerInch,
@@ -68,7 +88,7 @@ RobotPose* initDeadReckoning(
 {
     // ensure that this function is only executed once
     if (isInitialized) {
-        return 0;
+        return;
     }
 
     if (!initialPose) {
@@ -96,8 +116,6 @@ RobotPose* initDeadReckoning(
     CallEvery(updatePose, 0, timeStep);
 
     isInitialized = 1;
-    
-    return &pose;
 }
 
 // TODO: add tests
