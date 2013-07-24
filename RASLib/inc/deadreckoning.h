@@ -5,19 +5,21 @@ typedef struct {
     float x; // units (as defined by arguments to initDeadReckoning)
     float y; // units
     float heading; // radians
-} RobotPose;
+    float v; // units/second
+    float w; // radians/second
+} tPose;
 
 // copies _pose into the current pose
-void setCurrentPose(RobotPose *_pose);
+void SetCurrentPose(tPose *_pose);
 
 // copies the internal pose into _pose
-void getCurrentPose(RobotPose *_pose);
+void GetCurrentPose(tPose *_pose);
 
 // This starts differential dead reckoning using a left and right encoder and a periodic timer event.
 // Every timeStep seconds, an internal pose is updated with an estimation of the position (in units) and direction (in radians) of the center of the hypothetical wheel axis. 
 // Note: This assumes that the left and right encoders have been initialized
-void initDeadReckoning(
-    RobotPose *initialPose,
+void InitDeadReckoning(
+    tPose *initialPose,
     float unitsAxisWidth, // where 'units' could be inches, meters, etc.
     float ticksPerUnit, // units must be consistent with axis width
     float timeStep, // seconds
