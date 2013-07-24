@@ -5,11 +5,15 @@
 
 static unsigned char isInitialized = 0;
 
-static RobotPose pose;
+static tPose pose;
 static float unitsAxisWidth,
-             ticksPerUnit; // the axis width should be provided in 'units', not ticks, so we need this conversion
+             ticksPerUnit, // the axis width should be provided in 'units', not ticks, so we need this conversion
+             timeStep;
 static unsigned char leftEncIndex,
                      rightEncIndex;
+
+static float oldLeftDist = 0,
+             oldRightDist = 0;
 
 // this bounds the angle t to be within the range [0, 2*PI)
 //  where t is can be an angle on the range (-inf, inf)
@@ -30,34 +34,47 @@ void updatePose(void *data) {
     // calculate the distance each wheel has turned
     float leftDist = GetEncoderTicks(leftEncIndex) / ticksPerUnit,
           rightDist = GetEncoderTicks(rightEncIndex) / ticksPerUnit,
+          leftDelta = leftDist - oldLeftDist,
+          rightDelta = rightDist - oldRightDist,
           x = pose.x,
           y = pose.y,
           heading = pose.heading,
           new_x,
           new_y,
-          new_heading;
+          new_heading,
+          new_v,
+          new_w;
+
+    oldLeftDist = leftDist;
+    oldRightDist = rightDist;
 
     // The following math represents the kinematics of differential steering 
-    if (floatBasicallyEqual(leftDist, rightDist)) {
-        new_x = x + leftDist * cos(heading);
-        new_y = y + rightDist * sin(heading);
+    if (floatBasicallyEqual(leftDelta, rightDelta)) {
+        new_x = x + leftDelta * cos(heading);
+        new_y = y + rightDelta * sin(heading);
         new_heading = heading;
+        new_w = 0.0;
     } else {
-        float R = unitsAxisWidth * (leftDist + rightDist) / (2 * (rightDist - leftDist)),
-              wd = (rightDist - leftDist) / unitsAxisWidth;
+        float R = unitsAxisWidth * (leftDelta + rightDelta) / (2 * (rightDelta - leftDelta)),
+              wd = (rightDelta - leftDelta) / unitsAxisWidth;
 
         new_x = x + R * sin(wd + heading) - R * sin(heading);
         new_y = y - R * cos(wd + heading) + R * cos(heading);
         new_heading = boundAngle(heading + wd); 
+        new_w = wd/timeStep;
     }
     
-    // update the visible pose
+    new_v = (leftDelta + rightDelta)/2.0/timeStep;
+    
+    // update the internal pose
     pose.x = new_x;
     pose.y = new_y;
     pose.heading = new_heading;
+    pose.v = new_v;
+    pose.w = new_w;
 }
 
-void setCurrentPose(RobotPose *_pose) {
+void SetCurrentPose(tPose *_pose) {
     if (!_pose) {
         return;
     }
@@ -65,9 +82,11 @@ void setCurrentPose(RobotPose *_pose) {
     pose.x = _pose->x;
     pose.y = _pose->y;
     pose.heading = _pose->heading;
+    pose.v = _pose->v;
+    pose.w = _pose->w;
 }
 
-void getCurrentPose(RobotPose *_pose) {
+void GetCurrentPose(tPose *_pose) {
     if (!_pose) {
         return;
     }
@@ -75,13 +94,15 @@ void getCurrentPose(RobotPose *_pose) {
     _pose->x = pose.x;
     _pose->y = pose.y;
     _pose->heading = pose.heading; 
+    _pose->v = pose.v;
+    _pose->w = pose.w;
 }
 
-void initDeadReckoning(
-    RobotPose *initialPose,
+void InitDeadReckoning(
+    tPose *initialPose,
     float _unitsAxisWidth,
     float _ticksPerUnit,
-    float timeStep,
+    float _timeStep,
     unsigned char _leftEncIndex,
     unsigned char _rightEncIndex
     )
@@ -96,15 +117,20 @@ void initDeadReckoning(
         pose.x = 0;
         pose.y = 0;
         pose.heading = 0;
+        pose.v = 0;
+        pose.w = 0;
     } else {
         // otherwise, copy the initialPose's members over to our pose
         pose.x = initialPose->x;
         pose.y = initialPose->y;
         pose.heading = initialPose->heading;
+        pose.v = initialPose->v;
+        pose.w = initialPose->w;
     }
     
     unitsAxisWidth = _unitsAxisWidth;
     ticksPerUnit = _ticksPerUnit;
+    timeStep = _timeStep;
 
     // we assume that these encoders have already been initialized 
     // (TODO: ensure that they have been initialized)
