@@ -1,3 +1,5 @@
+// "luddef" stands for localization using differential-drive encoder feedback
+
 #include <math.h>
 #include "deadreckoning.h"
 #include "time.h"

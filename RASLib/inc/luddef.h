@@ -1,3 +1,5 @@
+// "luddef" stands for localization using differential-drive encoder feedback
+
 #ifndef __DEADRECKONING_H__
 #define __DEADRECKONING_H__
 
