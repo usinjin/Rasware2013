@@ -19,7 +19,7 @@ static tEncoder *leftEnc,
 static float oldLeftDist = 0,
              oldRightDist = 0;
 
-// this bounds the angle t to be within the range [0, 2*PI)
+// bounds the angle t to be within the range [0, 2*PI)
 //  where t is can be an angle on the range (-inf, inf)
 float boundAngle(float t) {
     float nf = t/(2*M_PI);
@@ -28,12 +28,12 @@ float boundAngle(float t) {
     return t - n*2*M_PI;
 }
 
-// use this to deal with small floating-point errors
+// deals with small floating-point errors
 int floatBasicallyEqual(float a, float b) {
     return fabs(a - b) < 1.0e-6;
 }
 
-// this function will be the callback for a periodic timer event, updating our pose estimate based on the encoders' ticks
+// callback for a periodic timer event, updating our pose estimate based on the encoders' ticks
 void updatePose(void *data) {
     // calculate the distance each wheel has turned
     float leftDist = GetEncoder(leftEnc) / ticksPerUnit,
@@ -118,6 +118,11 @@ void InitDeadReckoning(
         return;
     }
 
+    // ensure that the encoders have been initialized
+    if (!_leftEnc || !_rightEnc) {
+        return;
+    }
+
     if (!initialPose) {
         // if no initial pose is provided, zero-out our pose
         pose.x = 0;
@@ -137,9 +142,6 @@ void InitDeadReckoning(
     unitsAxisWidth = _unitsAxisWidth;
     ticksPerUnit = _ticksPerUnit;
     timeStep = _timeStep;
-
-    // we assume that these encoders have already been initialized 
-    // (TODO: ensure that they have been initialized)
     leftEnc = _leftEnc;
     rightEnc = _rightEnc;
 
@@ -149,5 +151,3 @@ void InitDeadReckoning(
 
     isInitialized = 1;
 }
-
-// TODO: add tests
