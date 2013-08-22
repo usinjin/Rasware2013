@@ -1,6 +1,8 @@
 #ifndef __DEADRECKONING_H__
 #define __DEADRECKONING_H__
 
+#include "encoder.h"
+
 typedef struct {
     float x; // units (as defined by arguments to initDeadReckoning)
     float y; // units
@@ -23,8 +25,8 @@ void InitDeadReckoning(
     float unitsAxisWidth, // where 'units' could be inches, meters, etc.
     float ticksPerUnit, // units must be consistent with axis width
     float timeStep, // seconds
-    unsigned char leftEnc,
-    unsigned char rightEnc
+    tEncoder *leftEnc,
+    tEncoder *rightEnc
     );
 
 #endif // __DEADRECKONING_H__

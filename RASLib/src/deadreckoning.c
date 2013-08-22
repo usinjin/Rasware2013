@@ -1,7 +1,9 @@
 #include <math.h>
 #include "deadreckoning.h"
-#include "encoder.h"
 #include "time.h"
+
+// apparently we don't get this from <math.h>
+#define M_PI 3.14159265358979323846
 
 static unsigned char isInitialized = 0;
 
@@ -9,8 +11,8 @@ static tPose pose;
 static float unitsAxisWidth,
              ticksPerUnit, // the axis width should be provided in 'units', not ticks, so we need this conversion
              timeStep;
-static unsigned char leftEncIndex,
-                     rightEncIndex;
+static tEncoder *leftEnc,
+                *rightEnc;
 
 static float oldLeftDist = 0,
              oldRightDist = 0;
@@ -32,8 +34,8 @@ int floatBasicallyEqual(float a, float b) {
 // this function will be the callback for a periodic timer event, updating our pose estimate based on the encoders' ticks
 void updatePose(void *data) {
     // calculate the distance each wheel has turned
-    float leftDist = GetEncoderTicks(leftEncIndex) / ticksPerUnit,
-          rightDist = GetEncoderTicks(rightEncIndex) / ticksPerUnit,
+    float leftDist = GetEncoder(leftEnc) / ticksPerUnit,
+          rightDist = GetEncoder(rightEnc) / ticksPerUnit,
           leftDelta = leftDist - oldLeftDist,
           rightDelta = rightDist - oldRightDist,
           x = pose.x,
@@ -64,7 +66,9 @@ void updatePose(void *data) {
         new_w = wd/timeStep;
     }
     
-    new_v = (leftDelta + rightDelta)/2.0/timeStep;
+    // not sure why, but without the (float) cast, we'll get a "single-precision operand 
+    //  implicitly converted to double-precision" warning
+    new_v = (leftDelta + rightDelta)/timeStep/(float)2.0;
     
     // update the internal pose
     pose.x = new_x;
@@ -103,8 +107,8 @@ void InitDeadReckoning(
     float _unitsAxisWidth,
     float _ticksPerUnit,
     float _timeStep,
-    unsigned char _leftEncIndex,
-    unsigned char _rightEncIndex
+    tEncoder *_leftEnc,
+    tEncoder *_rightEnc
     )
 {
     // ensure that this function is only executed once
@@ -134,8 +138,8 @@ void InitDeadReckoning(
 
     // we assume that these encoders have already been initialized 
     // (TODO: ensure that they have been initialized)
-    leftEncIndex = _leftEncIndex;
-    rightEncIndex = _rightEncIndex;
+    leftEnc = _leftEnc;
+    rightEnc = _rightEnc;
 
     // start a periodic timer event on behalf of the caller to update our pose using the encoders
     // (we don't set 'data' since we have what we need in this file's scope)    
