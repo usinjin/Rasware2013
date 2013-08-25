@@ -1,34 +1,51 @@
-// "luddef" stands for localization using differential-drive encoder feedback
+/*
+"LUDDEF" stands for "localization using differential-drive encoder feedback"
 
-#ifndef __DEADRECKONING_H__
-#define __DEADRECKONING_H__
+These functions use dead reckoning to estimate the x, y position, heading, angular velocity,
+and linear velocity of the center point between two encoders, which are assumed to be attached
+to the wheels or motors of a differential-drive (or "tank-drive") robot.
+
+To initialize, provide the distance between the two encoders (unitsAxisWidth) in some "units"
+of distance, along with the number of ticks an encoder registers per one unit of distance
+(ticksPerUnit). To get a pose estimation, provide a pose, the number of ticks each encoder has
+registered, and how much time has passed since the last estimation (timeStep). The estimation
+function will place its output in the pose struct provided.
+
+For example usage, see the LuddefTest project.
+*/
+
+#ifndef __LUDDEF_H__
+#define __LUDDEF_H__
 
 #include "encoder.h"
 
 typedef struct {
-    float x; // units (as defined by arguments to initDeadReckoning)
-    float y; // units
-    float heading; // radians
-    float v; // units/second
-    float w; // radians/second
+    float x;        // position in units
+    float y;        // position in units
+    float heading;  // direction in radians
+    float v;        // linear velocity in units/second
+    float w;        // angular velocity in radians/second
 } tPose;
 
-// copies _pose into the current pose
-void SetCurrentPose(tPose *_pose);
+typedef struct {
+    float unitsAxisWidth;
+    float ticksPerUnit;
+    float oldLeftDist;
+    float oldRightDist;
+} tLUDDEF;
 
-// copies the internal pose into _pose
-void GetCurrentPose(tPose *_pose);
-
-// This starts differential dead reckoning using a left and right encoder and a periodic timer event.
-// Every timeStep seconds, an internal pose is updated with an estimation of the position (in units) and direction (in radians) of the center of the hypothetical wheel axis. 
-// Note: This assumes that the left and right encoders have been initialized
-void InitDeadReckoning(
-    tPose *initialPose,
-    float unitsAxisWidth, // where 'units' could be inches, meters, etc.
-    float ticksPerUnit, // units must be consistent with axis width
-    float timeStep, // seconds
-    tEncoder *leftEnc,
-    tEncoder *rightEnc
+void UpdateLUDDEFPose(
+    tLUDDEF *luddef,
+    tPose *pose,
+    signed long leftTicks,
+    signed long rightTicks,
+    float timeStep // seconds
     );
 
-#endif // __DEADRECKONING_H__
+void InitializeLUDDEF(
+    tLUDDEF *luddef,
+    float unitsAxisWidth, // where 'units' could be inches, meters, etc.
+    float ticksPerUnit    // units must be consistent with axis width
+    );
+
+#endif // __LUDDEF_H__

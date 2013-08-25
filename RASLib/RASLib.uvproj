@@ -450,6 +450,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\sonar.c</FilePath>
             </File>
+            <File>
+              <FileName>luddef.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\luddef.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

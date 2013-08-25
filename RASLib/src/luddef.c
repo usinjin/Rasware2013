@@ -2,30 +2,16 @@
 
 #include <math.h>
 #include "luddef.h"
-#include "time.h"
 
-// apparently we don't get this from <math.h>
-#define M_PI 3.14159265358979323846
-
-static unsigned char isInitialized = 0;
-
-static tPose pose;
-static float unitsAxisWidth,
-             ticksPerUnit, // the axis width should be provided in 'units', not ticks, so we need this conversion
-             timeStep;
-static tEncoder *leftEnc,
-                *rightEnc;
-
-static float oldLeftDist = 0,
-             oldRightDist = 0;
+#define PI 3.14159265358979323846
 
 // bounds the angle t to be within the range [0, 2*PI)
 //  where t is can be an angle on the range (-inf, inf)
 float boundAngle(float t) {
-    float nf = t/(2*M_PI);
+    float nf = t/(2*PI);
     int n = (nf < 0) ? nf - 1 : nf;
-    
-    return t - n*2*M_PI;
+
+    return t - n*2*PI;
 }
 
 // deals with small floating-point errors
@@ -33,121 +19,51 @@ int floatBasicallyEqual(float a, float b) {
     return fabs(a - b) < 1.0e-6;
 }
 
-// callback for a periodic timer event, updating our pose estimate based on the encoders' ticks
-void updatePose(void *data) {
-    // calculate the distance each wheel has turned
-    float leftDist = GetEncoder(leftEnc) / ticksPerUnit,
-          rightDist = GetEncoder(rightEnc) / ticksPerUnit,
-          leftDelta = leftDist - oldLeftDist,
-          rightDelta = rightDist - oldRightDist,
-          x = pose.x,
-          y = pose.y,
-          heading = pose.heading,
-          new_x,
-          new_y,
-          new_heading,
-          new_v,
-          new_w;
-
-    oldLeftDist = leftDist;
-    oldRightDist = rightDist;
-
-    // The following math represents the kinematics of differential steering 
-    if (floatBasicallyEqual(leftDelta, rightDelta)) {
-        new_x = x + leftDelta * cos(heading);
-        new_y = y + rightDelta * sin(heading);
-        new_heading = heading;
-        new_w = 0.0;
-    } else {
-        float R = unitsAxisWidth * (leftDelta + rightDelta) / (2 * (rightDelta - leftDelta)),
-              wd = (rightDelta - leftDelta) / unitsAxisWidth;
-
-        new_x = x + R * sin(wd + heading) - R * sin(heading);
-        new_y = y - R * cos(wd + heading) + R * cos(heading);
-        new_heading = boundAngle(heading + wd); 
-        new_w = wd/timeStep;
-    }
-    
-    // not sure why, but without the (float) cast, we'll get a "single-precision operand 
-    //  implicitly converted to double-precision" warning
-    new_v = (leftDelta + rightDelta)/timeStep/(float)2.0;
-    
-    // update the internal pose
-    pose.x = new_x;
-    pose.y = new_y;
-    pose.heading = new_heading;
-    pose.v = new_v;
-    pose.w = new_w;
-}
-
-void SetCurrentPose(tPose *_pose) {
-    if (!_pose) {
-        return;
-    }
-
-    pose.x = _pose->x;
-    pose.y = _pose->y;
-    pose.heading = _pose->heading;
-    pose.v = _pose->v;
-    pose.w = _pose->w;
-}
-
-void GetCurrentPose(tPose *_pose) {
-    if (!_pose) {
-        return;
-    }
-
-    _pose->x = pose.x;
-    _pose->y = pose.y;
-    _pose->heading = pose.heading; 
-    _pose->v = pose.v;
-    _pose->w = pose.w;
-}
-
-void InitDeadReckoning(
-    tPose *initialPose,
-    float _unitsAxisWidth,
-    float _ticksPerUnit,
-    float _timeStep,
-    tEncoder *_leftEnc,
-    tEncoder *_rightEnc
+void UpdateLUDDEFPose(
+    tLUDDEF *luddef,
+    tPose *pose,
+    signed long leftTicks,
+    signed long rightTicks,
+    float timeStep
     )
 {
-    // ensure that this function is only executed once
-    if (isInitialized) {
-        return;
-    }
+    float heading = pose->heading;
 
-    // ensure that the encoders have been initialized
-    if (!_leftEnc || !_rightEnc) {
-        return;
-    }
+    // calculate the distance each wheel has turned
+    float leftDist = leftTicks / luddef->ticksPerUnit,
+          rightDist = rightTicks / luddef->ticksPerUnit,
+          leftDelta = leftDist - luddef->oldLeftDist,
+          rightDelta = rightDist - luddef->oldRightDist;
+    
+    luddef->oldLeftDist = leftDist;
+    luddef->oldRightDist = rightDist;
 
-    if (!initialPose) {
-        // if no initial pose is provided, zero-out our pose
-        pose.x = 0;
-        pose.y = 0;
-        pose.heading = 0;
-        pose.v = 0;
-        pose.w = 0;
+    // this math represents the kinematics of differential steering
+    if (floatBasicallyEqual(leftDelta, rightDelta)) {
+        pose->x += leftDelta * cos(heading);
+        pose->y += rightDelta * sin(heading);
+        pose->w = 0.0;
     } else {
-        // otherwise, copy the initialPose's members over to our pose
-        pose.x = initialPose->x;
-        pose.y = initialPose->y;
-        pose.heading = initialPose->heading;
-        pose.v = initialPose->v;
-        pose.w = initialPose->w;
+        float R = luddef->unitsAxisWidth * (leftDelta + rightDelta) / (2 * (rightDelta - leftDelta)),
+              wd = (rightDelta - leftDelta) / luddef->unitsAxisWidth;
+        
+        pose->x += R * sin(wd + heading) - R * sin(heading);
+        pose->y += -R * cos(wd + heading) + R * cos(heading);
+        pose->heading = boundAngle(heading + wd);
+        pose->w = wd/timeStep;
     }
     
-    unitsAxisWidth = _unitsAxisWidth;
-    ticksPerUnit = _ticksPerUnit;
-    timeStep = _timeStep;
-    leftEnc = _leftEnc;
-    rightEnc = _rightEnc;
+    pose->v = (leftDelta + rightDelta)/timeStep/(float)2.0;
+}
 
-    // start a periodic timer event on behalf of the caller to update our pose using the encoders
-    // (we don't set 'data' since we have what we need in this file's scope)    
-    CallEvery(updatePose, 0, timeStep);
-
-    isInitialized = 1;
+void InitializeLUDDEF(
+    tLUDDEF *luddef,
+    float unitsAxisWidth,
+    float ticksPerUnit
+    )
+{
+    luddef->unitsAxisWidth = unitsAxisWidth;
+    luddef->ticksPerUnit = ticksPerUnit;
+    luddef->oldLeftDist = 0;
+    luddef->oldRightDist = 0;
 }
