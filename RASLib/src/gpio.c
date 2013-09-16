@@ -25,6 +25,7 @@
 
 #include <StellarisWare/inc/hw_ints.h>
 #include <StellarisWare/inc/hw_memmap.h>
+#include <StellarisWare/inc/hw_gpio.h>
 #include <StellarisWare/driverlib/interrupt.h>
 #include <StellarisWare/driverlib/gpio.h>
 #include <StellarisWare/driverlib/sysctl.h>
@@ -87,6 +88,16 @@ void InitializeGPIO(void) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    
+    // Special workarounds for PF0 and PD7
+    // For more info lookup NMI mux issue on the LM4F
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_CR) = GPIO_PIN_7;
+    HWREG(GPIO_PORTD_BASE + GPIO_O_LOCK) = 0;
+    
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) = GPIO_PIN_0;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = 0;
         
     // Enable the interrupts
     // This shouldn't be nescessary but for some reason is...
@@ -120,6 +131,18 @@ void SetPin(tPin pin, tBoolean val) {
 void SetPinZ(tPin pin) {
     // Setting pin direction to input places it in high impedance mode
     GPIOPinTypeGPIOInput(PORT_VAL(pin), PIN_VAL(pin));
+}
+
+// Add a weak pull up resistor to the pin
+void PullUpPin(tPin pin) {
+    GPIOPadConfigSet(PORT_VAL(pin), PIN_VAL(pin), 
+                     GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+}
+
+// Add a weak pull down resistor to the pin
+void PullDownPin(tPin pin) {
+    GPIOPadConfigSet(PORT_VAL(pin), PIN_VAL(pin), 
+                     GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPD);
 }
 
 // Register a callback to be called when the pin's value changes, 
