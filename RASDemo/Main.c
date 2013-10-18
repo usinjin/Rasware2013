@@ -17,6 +17,8 @@ int main(void) {
     InitializeMCU();
     CallEvery(blink, 0, 0.25f);
 
+	
+	//test
     while(1) {
         Printf("\nRAS Demo for Robotathon 2013\n");
         Printf("  0=UART Demo\n  1=Motor Demo\n");
